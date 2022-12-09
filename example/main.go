@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	xxl "github.com/open-beagle/xxl-job-executor-go"
-	"github.com/open-beagle/xxl-job-executor-go/example/task"
+	xxl "github.com/MasterYang7/xxl-job-executor-go"
+	"github.com/MasterYang7/xxl-job-executor-go/example/task"
 )
 
 func main() {

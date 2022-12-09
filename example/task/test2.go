@@ -3,7 +3,7 @@ package task
 import (
 	"context"
 	"fmt"
-	xxl "github.com/open-beagle/xxl-job-executor-go"
+	xxl "github.com/MasterYang7/xxl-job-executor-go"
 	"time"
 )
 

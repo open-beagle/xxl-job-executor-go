@@ -1,4 +1,4 @@
-module github.com/open-beagle/xxl-job-executor-go
+module github.com/MasterYang7/xxl-job-executor-go
 
 go 1.18
 
