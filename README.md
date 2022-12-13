@@ -1,3 +1,4 @@
+
 # xxl-job-executor-go
 很多公司java与go开发共存，java中有xxl-job做为任务调度引擎，为此也出现了go执行器(客户端)，使用起来比较简单：
 # 支持
@@ -32,8 +33,11 @@ func main() {
 		xxl.AccessToken(""),            //请求令牌(默认为空)
 		xxl.ExecutorIp("127.0.0.1"),    //可自动获取
 		xxl.ExecutorPort("9999"),       //默认9999（非必填）
-		xxl.RegistryKey("golang-jobs"), //执行器名称
+		xxl.RegistryKey("gsy-golang-jobs-001"), //执行器名称
+		xxl.SetRegistryAlias("gsy测试执行器"),       // 设置别名
 		xxl.SetLogger(&logger{}),       //自定义日志
+		xxl.SetAdminPwd("123456"),              // 超管密码
+	    xxl.SetAddressList("http://localhost"), //设置job执行机器地址
 	)
 	exec.Init()
 	//设置日志查看handler

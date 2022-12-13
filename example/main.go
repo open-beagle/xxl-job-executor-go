@@ -18,6 +18,7 @@ func main() {
 		xxl.SetRegistryAlias("gsy测试执行器"),       // 设置别名
 		xxl.SetLogger(&logger{}),               //自定义日志
 		xxl.SetAdminPwd("123456"),              // 超管密码
+		xxl.SetAddressList("http://localhost"), //设置job执行机器地址
 	)
 	exec.Init()
 	//设置日志查看handler
