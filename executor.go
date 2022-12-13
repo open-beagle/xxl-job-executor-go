@@ -77,7 +77,7 @@ func (e *executor) Init(opts ...Option) {
 	e.address = e.opts.ExecutorIp + ":" + e.opts.ExecutorPort
 	go e.registry()
 	e.xxl = *newXxlApi(e.opts)
-	e.xxl.checkOrAddExecutor(e.opts.RegistryKey, e.opts.RegistryAlias)
+	e.xxl.checkOrAddExecutor(e.opts.RegistryKey, e.opts.RegistryAlias, e.opts.AddressList)
 }
 
 // LogHandler 日志handler

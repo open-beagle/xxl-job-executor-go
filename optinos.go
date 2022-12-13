@@ -16,6 +16,7 @@ type Options struct {
 	RegistryAlias string        `json:"registry_alias"` // 执行器别名
 	LogDir        string        `json:"log_dir"`        //日志目录
 	AdminPwd      string        `json:"admin_pwd"`      // 超管密码
+	AddressList   string        `json:"address_list"`   //机器地址
 
 	l Logger //日志处理
 }
@@ -98,5 +99,12 @@ func SetAdminPwd(pwd string) Option {
 func SetRegistryAlias(alias string) Option {
 	return func(o *Options) {
 		o.RegistryAlias = alias
+	}
+}
+
+// set AddressList 设置机器地址
+func SetAddressList(address string) Option {
+	return func(o *Options) {
+		o.AddressList = address
 	}
 }
