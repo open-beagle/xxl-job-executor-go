@@ -82,12 +82,14 @@ func (x *xxlApi) login() error {
 }
 
 // 检查并添加执行器
-func (x *xxlApi) checkOrAddExecutor(appname, alias string) {
+func (x *xxlApi) checkOrAddExecutor(appname, alias, addressList string) {
 	executor, err := x.getExecutor(appname)
 	if err != nil {
 		x.log.Error("获取执行器错误:%s", err.Error())
 	} else if executor.Appname == "" {
-		x.addExecutor(appname, alias)
+		x.addExecutor(appname, alias, addressList)
+	} else if executor.Appname != "" && (executor.AddressList != addressList || executor.Title != alias) {
+		x.updateExecutor(appname, alias, addressList, executor.Id)
 	}
 }
 
@@ -126,7 +128,7 @@ func (x *xxlApi) getExecutor(appname string) (executor xxlExecutor, err error) {
 }
 
 // 添加执行器
-func (x *xxlApi) addExecutor(appname, alias string) {
+func (x *xxlApi) addExecutor(appname, alias, addressList string) {
 	// https://apaas5.wodcloud.com/xxl-job-admin/jobgroup/save
 	if x.cookie == "" {
 		if err := x.login(); err != nil {
@@ -137,7 +139,48 @@ func (x *xxlApi) addExecutor(appname, alias string) {
 	body := url.Values{}
 	body.Add("appname", appname)
 	body.Add("title", alias)
-	body.Add("addressType", "0")
+	body.Add("addressType", "1")
+	body.Add("addressList", addressList)
+	request, _ := http.NewRequest("POST", sendURL, strings.NewReader(body.Encode()))
+	request.Header.Set("cookie", x.cookie)
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := client.Do(request)
+	if err != nil {
+		x.log.Error("调用接口【新增执行器】错误：%s", err.Error())
+		return
+	} else {
+		defer resp.Body.Close()
+		respBody, err := ioutil.ReadAll(resp.Body)
+		// {"code":200,"msg":null,"content":null}
+		if err != nil {
+			x.log.Error("调用接口【新增执行器】返回错误：%s", err.Error())
+			return
+		}
+		res := wenResCode{}
+		json.Unmarshal(respBody, &res)
+		if res.Code == 200 {
+			return
+		}
+		x.log.Error("调用接口【新增执行器】错误信息：%s", res.Msg)
+		return
+	}
+}
+
+// 更新执行器
+func (x *xxlApi) updateExecutor(appname, alias, addressList string, id int) {
+	// https://apaas5.wodcloud.com/xxl-job-admin/jobgroup/save
+	if x.cookie == "" {
+		if err := x.login(); err != nil {
+			return
+		}
+	}
+	sendURL := fmt.Sprintf("%s/jobgroup/update", x.Options.ServerAddr)
+	body := url.Values{}
+	body.Add("appname", appname)
+	body.Add("title", alias)
+	body.Add("addressType", "1")
+	body.Add("addressList", addressList)
+	body.Add("id", strconv.Itoa(id))
 	request, _ := http.NewRequest("POST", sendURL, strings.NewReader(body.Encode()))
 	request.Header.Set("cookie", x.cookie)
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -173,6 +216,7 @@ func (x *xxlApi) checkOrAddJob(jobDesc, scheduleConf, executorHandler string) {
 	} else if job.ExecutorHandler == executorHandler && (job.JobDesc != jobDesc || job.ScheduleConf != scheduleConf) { //modify it if it is not equal.
 		x.updateJob(jobDesc, scheduleConf, executorHandler, job.Id)
 	}
+	x.startJob(job.Id, executorHandler) //start job
 }
 
 // 获取任务
@@ -298,28 +342,18 @@ func (x *xxlApi) updateJob(jobDesc, scheduleConf, executorHandler string, id int
 	body.Add("scheduleConf", scheduleConf)
 	body.Add("jobDesc", jobDesc)
 	body.Add("executorHandler", executorHandler)
-	body.Add("id", strconv.Itoa(executor.Id))
+	body.Add("id", strconv.Itoa(id))
 	body.Add("author", "beagle")
 	body.Add("scheduleType", "CRON")
 	body.Add("executorRouteStrategy", "FIRST")
-	body.Add("executorTimeout", "0")
 	body.Add("executorFailRetryCount", "0")
 	body.Add("misfireStrategy", "DO_NOTHING")
 	body.Add("executorBlockStrategy", "SERIAL_EXECUTION")
-	body.Add("executorHandler", executorHandler)
 	body.Add("jobGroup", strconv.Itoa(executor.Id))
-	body.Add("jobDesc", jobDesc)
-	body.Add("author", "beagle")
-	body.Add("scheduleType", "CRON")
-	body.Add("scheduleConf", scheduleConf)
 	body.Add("cronGen_display", scheduleConf)
 	body.Add("glueType", "BEAN")
-	body.Add("executorHandler", executorHandler)
-	body.Add("executorRouteStrategy", "FIRST")
-	body.Add("misfireStrategy", "DO_NOTHING")
-	body.Add("executorBlockStrategy", "SERIAL_EXECUTION")
 	body.Add("executorTimeout", "0")
-	body.Add("executorFailRetryCount", "0")
+	body.Add("triggerStatus", "1")
 	body.Add("glueRemark", "GLUE代码初始化")
 	request, _ := http.NewRequest("POST", sendURL, strings.NewReader(body.Encode()))
 	request.Header.Set("cookie", x.cookie)
@@ -341,6 +375,48 @@ func (x *xxlApi) updateJob(jobDesc, scheduleConf, executorHandler string, id int
 			return
 		}
 		x.log.Error("调用接口【修改任务】错误信息：%s", res.Msg)
+		return
+	}
+}
+
+// 启动任务
+func (x *xxlApi) startJob(id int, executorHandler string) {
+	if x.cookie == "" {
+		if err := x.login(); err != nil {
+			return
+		}
+	}
+	executor, err := x.getExecutor(x.RegistryKey)
+	if err != nil {
+		x.log.Error("获取执行器Id信息错误:%s", err.Error())
+		return
+	} else if executor.Id == 0 {
+		x.log.Error("获取执行器Id为0")
+		return
+	}
+	sendURL := fmt.Sprintf("%s/jobinfo/start", x.Options.ServerAddr)
+	body := url.Values{}
+	body.Add("id", strconv.Itoa(id))
+	request, _ := http.NewRequest("POST", sendURL, strings.NewReader(body.Encode()))
+	request.Header.Set("cookie", x.cookie)
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := client.Do(request)
+	if err != nil {
+		x.log.Error("调用接口【启动任务】错误：%s", err.Error())
+		return
+	} else {
+		defer resp.Body.Close()
+		respBody, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			x.log.Error("调用接口【启动任务】返回错误：%s", err.Error())
+			return
+		}
+		res := wenResCode{}
+		json.Unmarshal(respBody, &res)
+		if res.Code == 200 {
+			return
+		}
+		x.log.Error("调用接口【启动任务】错误信息：%s", res.Msg)
 		return
 	}
 }
