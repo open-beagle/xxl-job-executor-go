@@ -213,6 +213,10 @@ func (x *xxlApi) checkOrAddJob(jobDesc, scheduleConf, executorHandler string) {
 		x.log.Error("获取执行器错误:%s", err.Error())
 	} else if job.ExecutorHandler == "" {
 		x.addJob(jobDesc, scheduleConf, executorHandler)
+		job, err = x.getJob(executorHandler)
+		if err != nil {
+			x.log.Error("获取执行器错误:%s", err.Error())
+		}
 	} else if job.ExecutorHandler == executorHandler && (job.JobDesc != jobDesc || job.ScheduleConf != scheduleConf) { //modify it if it is not equal.
 		x.updateJob(jobDesc, scheduleConf, executorHandler, job.Id)
 	}
