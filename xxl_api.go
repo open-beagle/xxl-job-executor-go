@@ -1,6 +1,7 @@
 package xxl
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,7 +14,13 @@ import (
 var client *http.Client
 
 func init() {
-	client = &http.Client{}
+	tr := &http.Transport{
+		DisableKeepAlives: true,
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+	}
+	client = &http.Client{
+		Transport: tr,
+	}
 }
 
 type xxlApi struct {
@@ -66,12 +73,21 @@ func newXxlApi(opt Options) *xxlApi {
 
 func (x *xxlApi) login() error {
 	sendURL := fmt.Sprintf("%s/login", x.Options.ServerAddr)
-	header := make(map[string]string)
-	header["Content-Type"] = "application/x-www-form-urlencoded"
 	body := url.Values{}
 	body.Add("userName", "admin")
 	body.Add("password", x.Options.AdminPwd)
-	resp, err := http.Post(sendURL, "application/x-www-form-urlencoded", strings.NewReader(body.Encode()))
+	request, _ := http.NewRequest("POST", sendURL, strings.NewReader(body.Encode()))
+	request.Header.Set("cookie", x.cookie)
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := client.Do(request)
+
+	// sendURL := fmt.Sprintf("%s/login", x.Options.ServerAddr)
+	// header := make(map[string]string)
+	// header["Content-Type"] = "application/x-www-form-urlencoded"
+	// body := url.Values{}
+	// body.Add("userName", "admin")
+	// body.Add("password", x.Options.AdminPwd)
+	// resp, err := http.Post(sendURL, "application/x-www-form-urlencoded", strings.NewReader(body.Encode()))
 	if err != nil {
 		return err
 	} else {
